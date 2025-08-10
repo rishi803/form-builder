@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Typography } from '@mui/material';
+import { Box, TextField, Checkbox, FormControlLabel, Select, MenuItem, FormControl, InputLabel, RadioGroup, Radio, Typography } from '@mui/material';
 import { FormSchema, FormField } from '../../types';
 
 interface FormPreviewProps {
@@ -14,7 +14,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
   useEffect(() => {
     // Initialize form values with default values
     const initialValues = form.fields.reduce((acc, field) => {
-      acc[field.id] = field.defaultValue ?? (field.type === 'checkbox' ? (field.options ? [] : false) : field.derived ? '0 years 0 months' : '');
+      acc[field.id] = field.defaultValue ?? (field.type === 'checkbox' ? (field.options ? [] : false) : '');
       return acc;
     }, {} as { [key: string]: any });
     setFormValues(initialValues);
@@ -23,13 +23,18 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
       acc[field.id] = field.derived ? '' : validateField(field, initialValues[field.id]);
       return acc;
     }, {} as { [key: string]: string });
-    setErrors(initialErrors); 
+    setErrors(initialErrors);
   }, [form]);
 
   const validateField = (field: FormField, value: any): string => {
     if (!field.validationRules || field.derived) return '';
     for (const rule of field.validationRules) {
-      if (rule.type === 'notEmpty' && (value === '' || value === undefined || value === null || (field.type === 'checkbox' && (Array.isArray(value) ? value.length === 0 : !value)))) {
+      if (rule.type === 'notEmpty' && (
+        value === '' || 
+        value === undefined || 
+        value === null || 
+        (field.type === 'checkbox' && (Array.isArray(value) ? value.length === 0 : !value))
+      )) {
         return rule.message;
       }
       if (rule.type === 'minLength' && typeof value === 'string' && value.length < (rule.value as number)) {
@@ -48,26 +53,35 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
     return '';
   };
 
-  const computeDerivedValue = (field: FormField, values: { [key: string]: any }): string => {
-    if (!field.parentFields || field.parentFields.length === 0 || !field.formula) {
-      return '0 years 0 months';
+  const computeDerivedValue = (field: FormField, values: { [key: string]: any }): any => {
+    if (!field.formula || !field.parentFields || field.parentFields.length === 0) {
+      return '';
     }
     try {
-      const dateValue = values[field.parentFields[0]];
-      if (!dateValue) return '0 years 0 months';
-      const birthDate = new Date(dateValue);
-      const today = new Date('2025-08-10'); // Fixed date for consistency
-      if (isNaN(birthDate.getTime())) return '0 years 0 months';
-      let years = today.getFullYear() - birthDate.getFullYear();
-      let months = today.getMonth() - birthDate.getMonth();
-      if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
-        years--;
-        months += 12;
+      const parentField = form.fields.find(f => f.id === field.parentFields![0]);
+      if (field.formula === 'ageFromDate(field1)' && parentField?.type === 'date') {
+        const dateValue = values[field.parentFields![0]];
+        if (!dateValue) return '';
+        const birthDate = new Date(dateValue);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
       }
-      if (years < 0) return '0 years 0 months';
-      return `${years} years ${months} months`;
+      if (field.formula === 'field1 + field2' && field.parentFields?.every(id => form.fields.find(f => f.id === id)?.type === 'number')) {
+        const valuesArray = field.parentFields.map(id => Number(values[id]) || 0);
+        return valuesArray.reduce((sum, val) => sum + val, 0);
+      }
+      if (field.formula === 'field1 - field2' && field.parentFields?.every(id => form.fields.find(f => f.id === id)?.type === 'number')) {
+        const valuesArray = field.parentFields.map(id => Number(values[id]) || 0);
+        return valuesArray.reduce((a, b) => a - b, 0);
+      }
+      return '';
     } catch {
-      return '0 years 0 months';
+      return 'Error in formula';
     }
   };
 
@@ -111,68 +125,120 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
   };
 
   const renderField = (field: FormField) => {
-  const value = formValues[field.id] ?? (field.type === 'checkbox' ? (field.options ? [] : false) : field.derived ? '0 years 0 months' : '');
-  const error = errors[field.id] ?? '';
-  const isFocused = focusedFields[field.id] ?? false;
+    const value = formValues[field.id] ?? (field.type === 'checkbox' ? (field.options ? [] : false) : '');
+    const error = errors[field.id] ?? '';
+    const isFocused = focusedFields[field.id] ?? false;
 
-  const commonSx = {
-    backgroundColor: isFocused ? '#fff8e1' : '#fff', // light yellow highlight when focused
-  };
+    if (field.derived) {
+      return (
+        <Box key={field.id} sx={{ mb: 2 }}>
+          <Typography variant="subtitle1">{field.label}</Typography>
+          <Typography>{value || 'N/A'}</Typography>
+        </Box>
+      );
+    }
 
-  if (field.derived) {
     return (
       <Box key={field.id} sx={{ mb: 2 }}>
-        <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 'medium' }}>{field.label}</Typography>
-        <TextField
-          value={value}
-          disabled
-          fullWidth
-          variant="outlined"
-          sx={{ backgroundColor: '#f5f5f5' }}
-        />
+        <Typography variant="body2" sx={{ mb: 0.5 }}>{field.label}</Typography>
+        {field.type === 'text' || field.type === 'textarea' || field.type === 'number' ? (
+          <TextField
+            value={value}
+            onChange={(e) => handleChange(field.id, e.target.value)}
+            onBlur={() => handleBlur(field.id)}
+            onFocus={() => handleFocus(field.id)}
+            error={!!error}
+            helperText={error}
+            fullWidth
+            multiline={field.type === 'textarea'}
+            rows={field.type === 'textarea' ? 4 : 1}
+          />
+        ) : field.type === 'date' ? (
+          <TextField
+            type="date"
+            value={value}
+            onChange={(e) => handleChange(field.id, e.target.value)}
+            onBlur={() => handleBlur(field.id)}
+            onFocus={() => handleFocus(field.id)}
+            error={!!error}
+            helperText={error}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+          />
+        ) : field.type === 'checkbox' ? (
+          <Box>
+            {field.options && field.options.length > 0 ? (
+              field.options.map((option) => (
+                <FormControlLabel
+                  key={option}
+                  control={
+                    <Checkbox
+                      checked={Array.isArray(value) && value.includes(option)}
+                      onChange={(e) => {
+                        const updatedValue = e.target.checked
+                          ? [...(Array.isArray(value) ? value : []), option]
+                          : (Array.isArray(value) ? value : []).filter((v: string) => v !== option);
+                        handleChange(field.id, updatedValue);
+                      }}
+                      onBlur={() => handleBlur(field.id)}
+                      onFocus={() => handleFocus(field.id)}
+                    />
+                  }
+                  label={option}
+                />
+              ))
+            ) : (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={value}
+                    onChange={(e) => handleChange(field.id, e.target.checked)}
+                    onBlur={() => handleBlur(field.id)}
+                    onFocus={() => handleFocus(field.id)}
+                  />
+                }
+                label=""
+              />
+            )}
+            {error && <Typography color="error" variant="caption">{error}</Typography>}
+          </Box>
+        ) : field.type === 'select' ? (
+          <FormControl fullWidth error={!!error}>
+            <Select
+              value={value}
+              onChange={(e) => handleChange(field.id, e.target.value)}
+              onBlur={() => handleBlur(field.id)}
+              onFocus={() => handleFocus(field.id)}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>Select option</MenuItem>
+              {(field.options || ['Option 1', 'Option 2']).map((option) => (
+                <MenuItem key={option} value={option}>{option}</MenuItem>
+              ))}
+            </Select>
+            {error && <Typography color="error" variant="caption">{error}</Typography>}
+          </FormControl>
+        ) : field.type === 'radio' ? (
+          <FormControl fullWidth error={!!error}>
+            <RadioGroup
+              value={value}
+              onChange={(e) => handleChange(field.id, e.target.value)}
+              onBlur={() => handleBlur(field.id)}
+              onFocus={() => handleFocus(field.id)}
+            >
+              {(field.options || ['Option 1', 'Option 2']).map((option) => (
+                <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
+              ))}
+            </RadioGroup>
+            {error && <Typography color="error" variant="caption">{error}</Typography>}
+          </FormControl>
+        ) : null}
       </Box>
     );
-  }
+  };
 
   return (
-    <Box key={field.id} sx={{ mb: 2 }}>
-      <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 'medium' }}>{field.label}</Typography>
-      {field.type === 'text' || field.type === 'textarea' || field.type === 'number' ? (
-        <TextField
-          value={value}
-          onChange={(e) => handleChange(field.id, e.target.value)}
-          onBlur={() => handleBlur(field.id)}
-          onFocus={() => handleFocus(field.id)}
-          error={!!error}
-          helperText={error}
-          fullWidth
-          multiline={field.type === 'textarea'}
-          rows={field.type === 'textarea' ? 4 : 1}
-          variant="outlined"
-          sx={commonSx}
-        />
-      ) : field.type === 'date' ? (
-        <TextField
-          type="date"
-          value={value}
-          onChange={(e) => handleChange(field.id, e.target.value)}
-          onBlur={() => handleBlur(field.id)}
-          onFocus={() => handleFocus(field.id)}
-          error={!!error}
-          helperText={error}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          variant="outlined"
-          sx={commonSx}
-        />
-      ) : /* other field types remain unchanged, just add sx={commonSx} in each */ null}
-    </Box>
-  );
-};
-
-
-  return (
-    <Box component="form" sx={{ mt: 3, p: 3, backgroundColor: '#fafafa', borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+    <Box component="form" sx={{ mt: 2 }}>
       {form.fields.map(renderField)}
     </Box>
   );
