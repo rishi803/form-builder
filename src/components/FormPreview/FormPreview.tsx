@@ -18,7 +18,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
       return acc;
     }, {} as { [key: string]: any });
     setFormValues(initialValues);
-    // Validate initial values
+    // Validatong initial values
     const initialErrors = form.fields.reduce((acc, field) => {
       acc[field.id] = field.derived ? '' : validateField(field, initialValues[field.id]);
       return acc;
@@ -90,7 +90,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
       const newValues = { ...prev, [fieldId]: value };
       const newErrors = { ...errors };
 
-      // Validate the changed field
+      // Validateing the changed field
       const field = form.fields.find(f => f.id === fieldId);
       if (field && !field.derived) {
         newErrors[fieldId] = validateField(field, value);
@@ -125,46 +125,59 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
   };
 
   const renderField = (field: FormField) => {
-    const value = formValues[field.id] ?? (field.type === 'checkbox' ? (field.options ? [] : false) : '');
-    const error = errors[field.id] ?? '';
+      const value = formValues[field.id] ?? (field.type === 'checkbox' ? (field.options ? [] : false) : field.derived ? '0 years 0 months' : '');
+  const error = errors[field.id] ?? '';
+  const isFocused = focusedFields[field.id] ?? false;
 
-    if (field.derived) {
-      return (
-        <Box key={field.id} sx={{ mb: 2 }}>
-          <Typography variant="subtitle1">{field.label}</Typography>
-          <Typography>{value || 'N/A'}</Typography>
-        </Box>
-      );
-    }
+  const commonSx = {
+    backgroundColor: isFocused ? '#fff8e1' : '#fff',
+  };
 
+  if (field.derived) {
+    return (
+      <Box key={field.id} sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 'medium' }}>{field.label}</Typography>
+        <TextField
+          value={value}
+          disabled
+          fullWidth
+          variant="outlined"
+          sx={{ backgroundColor: '#f5f5f5' }}
+        />
+      </Box>
+    );
+  }
     return (
       <Box key={field.id} sx={{ mb: 2 }}>
         <Typography variant="body2" sx={{ mb: 0.5 }}>{field.label}</Typography>
         {field.type === 'text' || field.type === 'textarea' || field.type === 'number' ? (
-          <TextField
-            value={value}
-            onChange={(e) => handleChange(field.id, e.target.value)}
-            onBlur={() => handleBlur(field.id)}
-            onFocus={() => handleFocus(field.id)}
-            error={!!error}
-            helperText={error}
-            fullWidth
-            multiline={field.type === 'textarea'}
-            rows={field.type === 'textarea' ? 4 : 1}
-          />
-        ) : field.type === 'date' ? (
-          <TextField
-            type="date"
-            value={value}
-            onChange={(e) => handleChange(field.id, e.target.value)}
-            onBlur={() => handleBlur(field.id)}
-            onFocus={() => handleFocus(field.id)}
-            error={!!error}
-            helperText={error}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-        ) : field.type === 'checkbox' ? (
+        <TextField
+          value={value}
+          onChange={(e) => handleChange(field.id, e.target.value)}
+          onBlur={() => handleBlur(field.id)}
+          onFocus={() => handleFocus(field.id)}
+          error={!!error}
+          helperText={error}
+          fullWidth
+          multiline={field.type === 'textarea'}
+          rows={field.type === 'textarea' ? 4 : 1}
+          variant="outlined"
+          sx={commonSx}
+        />) : field.type === 'date' ? (
+        <TextField
+          type="date"
+          value={value}
+          onChange={(e) => handleChange(field.id, e.target.value)}
+          onBlur={() => handleBlur(field.id)}
+          onFocus={() => handleFocus(field.id)}
+          error={!!error}
+          helperText={error}
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+          variant="outlined"
+          sx={commonSx}
+        />
+      ) : field.type === 'checkbox' ? (
           <Box>
             {field.options && field.options.length > 0 ? (
               field.options.map((option) => (
@@ -181,6 +194,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
                       }}
                       onBlur={() => handleBlur(field.id)}
                       onFocus={() => handleFocus(field.id)}
+                      sx={commonSx}
                     />
                   }
                   label={option}
@@ -194,6 +208,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
                     onChange={(e) => handleChange(field.id, e.target.checked)}
                     onBlur={() => handleBlur(field.id)}
                     onFocus={() => handleFocus(field.id)}
+                    sx={commonSx}
                   />
                 }
                 label=""
@@ -209,6 +224,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
               onBlur={() => handleBlur(field.id)}
               onFocus={() => handleFocus(field.id)}
               displayEmpty
+              sx={commonSx}
             >
               <MenuItem value="" disabled>Select option</MenuItem>
               {(field.options || ['Option 1', 'Option 2']).map((option) => (
@@ -218,12 +234,13 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
             {error && <Typography color="error" variant="caption">{error}</Typography>}
           </FormControl>
         ) : field.type === 'radio' ? (
-          <FormControl fullWidth error={!!error}>
+          <FormControl fullWidth error={!!error} sx={commonSx}>
             <RadioGroup
               value={value}
               onChange={(e) => handleChange(field.id, e.target.value)}
               onBlur={() => handleBlur(field.id)}
               onFocus={() => handleFocus(field.id)}
+              sx={commonSx}
             >
               {(field.options || ['Option 1', 'Option 2']).map((option) => (
                 <FormControlLabel key={option} value={option} control={<Radio />} label={option} />
