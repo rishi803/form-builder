@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Checkbox, FormControlLabel, Select, MenuItem, FormControl, InputLabel, RadioGroup, Radio, Typography } from '@mui/material';
+import { Box, TextField, Checkbox, FormControlLabel, Select, MenuItem, FormControl, RadioGroup, Radio, Typography } from '@mui/material';
 import { FormSchema, FormField } from '../../types';
 
 interface FormPreviewProps {
@@ -127,7 +127,6 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
   const renderField = (field: FormField) => {
     const value = formValues[field.id] ?? (field.type === 'checkbox' ? (field.options ? [] : false) : '');
     const error = errors[field.id] ?? '';
-    const isFocused = focusedFields[field.id] ?? false;
 
     if (field.derived) {
       return (
