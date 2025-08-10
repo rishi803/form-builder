@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Checkbox, FormControlLabel, Select, MenuItem, FormControl, RadioGroup, Radio, Typography } from '@mui/material';
+import { Box, TextField, Typography } from '@mui/material';
 import { FormSchema, FormField } from '../../types';
 
 interface FormPreviewProps {
@@ -23,7 +23,7 @@ const FormPreview: React.FC<FormPreviewProps> = ({ form }) => {
       acc[field.id] = field.derived ? '' : validateField(field, initialValues[field.id]);
       return acc;
     }, {} as { [key: string]: string });
-    setErrors(initialErrors);
+    setErrors(initialErrors); 
   }, [form]);
 
   const validateField = (field: FormField, value: any): string => {
